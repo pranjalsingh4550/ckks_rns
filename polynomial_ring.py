@@ -1,5 +1,6 @@
 """
 TurboHE's CKKS implementation using RNS.
+This file has CKKS. RNS is in rns.py.
 Sympy (symbolic python) supports infinite precision integers, polynomials,
 rings, moduli, etc.
 
@@ -38,6 +39,16 @@ def failed():
 	print(f"checking modulus: {mod2}\t{mod2 + 1}")
 	mod2 = Poly(x ** 203 * 30405 + x + 601, x, domain = ZZ.map([200]))
 	print(f"checking modulus: {mod2}\t{mod2 + 1}")
+
+# Helpers
+def print_list(l, depth = 0):
+	for e in l:
+		if isinstance(e, list):
+			print_list(e, depth = depth + 1)
+		else:
+			ws = "\t" * depth
+			print(f"{ws}{e}")
+	print("\n")
 
 def to_ciphertext(poln, mod = q):
 	""" The plaintext space in TurboHE is Z[x]/(x^n + 1).
@@ -180,6 +191,12 @@ def ciphertext_add(ct1, ct2, mod = n, deg = q):
 
 
 def trial(mod, deg):
+	""" Encrypt and decrypt a random polynomial.
+	Returns (true_value + v.e_pk + e0 + sk.e1)
+	e_pk from setup_encryption()
+	e0, e1 from encrypt_plaintext()
+	"""
+
 	pt = make_random_poly(mod, deg)
 	print(f"Made random polynomial plaintext {pt}")
 	k = setup_encryption(mod, deg)
@@ -190,6 +207,10 @@ def trial(mod, deg):
 	print(f"-----------------\nOriginal PT:\n{pt}\nDecrypyted pt:\n{decrypted}")
 
 def trial_add(mod, deg):
+	""" m1 and m2 use different encryption key values (v1, v2), but the same
+	pk and sk.
+	Error: same error term as trial(), for two terms.
+	"""
 	pt1 = make_random_poly(mod, deg)
 	pt2 = make_random_poly(mod, deg)
 	k = setup_encryption(mod, deg)
