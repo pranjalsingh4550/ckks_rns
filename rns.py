@@ -93,8 +93,9 @@ def residues_to_domain(rs):
 	assert product > 10
 	return product
 
-def add_residues(rs1, rs2):
+def add_residues(rs1, rs2, ckks = False):
 	""" Add two sets of residues
+	Use CKKS if ckks == True.
 	"""
 	assert isinstance(rs1, list)
 	assert isinstance(rs2, list)
@@ -106,15 +107,24 @@ def add_residues(rs1, rs2):
 
 	try:
 		for i in range(len(rs1)):
-			ret[i] = rs1[i] + rs2[i]
+			if ckks == False:
+				ret[i] = rs1[i] + rs2[i]
+			if ckks == True:
+				modulus = rs1[i].domain.mod
+				ret[i] = ckks_add_wrapper(rs1[i], rs2[i],
+						      mod = modulus)
+
+			assert ret[i] is not None
 			if verbose:
 				print(f"added [{i}])")
 		return ret
-	except:
+	except Exception as e:
 		print(f"Error in addition. Bases are\n"
 			f"{residues_to_basis(rs1)}\n"
 			f"{residues_to_basis(rs2)}"
 		)
+		print(e)
+		exit(-1)
 	return None
 
 def residues_to_canonical(rs, deg = None):
@@ -173,11 +183,15 @@ def driver(composite_modulus = None):
 
 	simple_sum = pt1 + pt2
 	rs_sum = add_residues(rs1, rs2)
+	rs_sum_ckks = add_residues(rs1, rs2, ckks = True)
 
 	old = residues_to_canonical(rs_sum)
+	decrypted = residues_to_canonical(rs_sum_ckks)
 	print(f"reference {pt1 + pt2}")
 	print(f"retval    {old}")
-	print(f"difference {old - pt1 - pt2}")
+	print(f"ckks output {decrypted}")
+	print(f"difference in canonical {old - pt1 - pt2}")
+	print(f"\ndifference in ckks {old - decrypted}")
 
 if __name__ == "__main__":
 	driver()

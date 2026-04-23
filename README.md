@@ -1,5 +1,8 @@
 # CKKS Using RNS
 
+Reference: http://doi.org/10.1109/IPDPS54959.2023.00084   
+TurboHE: Accelerating Fully Homomorphic Encryption Using FPGA Clusters
+
 ### Resources
 
 - Existing homomorphic encryption libraries:
