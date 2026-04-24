@@ -25,7 +25,7 @@ except:
 try:
 	q = int(os.getenv('MODULUS'))
 except:
-	q = 200
+	q = 1020304050607
 
 if os.getenv('VERBOSE') == '1':
 	verbose = True
@@ -115,7 +115,7 @@ def coeffs_list(poln):
 	l = Poly(poln).all_coeffs()
 
 	if verbose:
-		print(f"# coefficients are {l[:30]}")
+		print(f"# coefficients are {l[:30]} ...")
 		pass
 
 	assert "is_integer" in dir(l[0])
@@ -167,7 +167,7 @@ def poly_mult(p1, p2, mod = q, divisor_degree = n):
 
 # Encryption helpers start here.
 
-def get_encryption_key_dst(mod = q, deg = n):
+def get_encryption_key_distribution(mod = q, deg = n):
 	""" \\Chi_{enc}
 	Values need not be small or large or something.
 	Using uniform random polynomials.
@@ -175,7 +175,7 @@ def get_encryption_key_dst(mod = q, deg = n):
 	Correction: I think we need to use small moduli.
 	"""
 	if verbose:
-		print(f"# get_encryption_key_dst: {mod} {deg}")
+		print(f"# get_encryption_key_distribution: {mod} {deg}")
 	return make_random_poly(mod = mod, deg = deg , max_coeff = 5)
 
 def get_noise(mod = q, deg = n, max_coeff = 5):
@@ -183,6 +183,7 @@ def get_noise(mod = q, deg = n, max_coeff = 5):
 	Might be incorrect.
 	Returns small-coefficient polynomials.
 	"""
+	# return Poly(0, x, modulus = mod)
 	assert max_coeff.is_integer()
 	return make_random_poly(mod = mod, deg = deg, max_coeff = 5)
 
@@ -190,6 +191,7 @@ def get_key(mod = q, deg = n):
 	""" \\Chi_{key}.
 	Returns random polynomials for now.
 	"""
+	return make_random_poly(mod, deg, max_coeff = 1)
 	return make_random_poly(mod, deg, max_coeff = max((mod // 1000), 3))
 
 def get_domain_inverse(num, mod = q):
@@ -204,7 +206,7 @@ def get_domain_inverse(num, mod = q):
 		return ret
 
 	else:
-		return solve_congruence((int(num), int(mod)))
+		return sympy.mod_inverse(num, mod)
 
 def generate_evaluation_key(rns_context, mod = q, deg = n):
 	""" Hard-code the KSK/key-switching-key definition to run on s' = s^2.
@@ -321,7 +323,7 @@ def encrypt_plaintext(pt_poln, keys, mod = q, deg = n):
 	assert 'pk' in keys
 	assert isinstance(pt_poln, Poly)
 
-	v = get_encryption_key_dst(mod = mod, deg = deg)
+	v = get_encryption_key_distribution(mod = mod, deg = deg)
 	e0 = get_noise(mod = mod, deg = deg)
 	e1 = get_noise(mod = mod, deg = deg)
 
@@ -442,7 +444,7 @@ def get_ratios(pt1, pt2):
 	difference = pt1 - pt2
 	diff_ratio = [ abs(int(t)) / mod for t in coeffs_list(difference) ]
 	avg = sum(diff_ratio) / len(diff_ratio)
-	print(f"average difference ratio: {avg}")
+	print(f"average difference ratio: {avg} | {diff_ratio[:15]} ...")
 
 	if verbose:
 		print(f"differences are {diff_ratio}\n***************");
@@ -507,9 +509,10 @@ def trial_mul_ciphertext(mod, deg):
 	""" m1 and m2 use different encryption key values (v1, v2), but the same
 	pk and sk.
 	Error: same error term as trial(), for two terms.
+	Use moderately small m1, m2 values to avoid integer overflow.
 	"""
-	pt1 = make_random_poly(mod, deg)
-	pt2 = make_random_poly(mod, deg)
+	pt1 = make_random_poly(mod = mod, deg = deg, max_coeff = 10000)
+	pt2 = make_random_poly(mod = mod, deg = deg, max_coeff = 10000)
 	k = setup_encryption(mod, deg)
 	print(f"\n\nMULTIPLICATION\n{pt1}\n{pt2}\n{k}")
 	ct1 = encrypt_plaintext(pt1, k, mod, deg)
@@ -528,6 +531,7 @@ def trial_mul_ciphertext(mod, deg):
 
 	get_ratios(pt_out, true_val)
 
+	print(f"\nEarly output: {early_output}")
 	print(f"\n------\nEarly decryption output:")
 	get_ratios(early_output, true_val)
 

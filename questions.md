@@ -14,7 +14,7 @@ $ s^2 = A + B \cdot s $
 for easy substitution when three-term multiplication ciphertext is being reduced
 to two terms:
 
-Replace $ c_0 + c_1 \dot s + c_2 \dot s^2 $ with $ d_0 + d_1 \dot s $, whose
+Replace $c_0 + c_1 \dot s + c_2 \dot s^2$ with $d_0 + d_1 \dot s$, whose
 ciphertext representation is like normal ciphertext: $(d_0, d_1)$.
 
 See comments in `ciphertext_multiply()`.
@@ -40,4 +40,9 @@ $q$) is NOT clear.
   some integer like 1, 2, sometimes 0.
   $a \cdot e$ is not a "small" value to be ignored.
 - Instead, try to dwarf it using scaling, such that $m_1 \cdot m_2$ is much
-  larger than $m_1 \cdo e_2$, etc.
+  larger than $m_1 \cdot e_2$, etc.
+
+### Noise Distribution
+
+I have picked coefficients in $[0, 5)$. Some others pick ${-1, 0, 1}$.   
+Better to have a mean value of zero, or errors will be monotonically increasing.  
