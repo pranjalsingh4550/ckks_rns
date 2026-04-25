@@ -13,6 +13,7 @@ import sympy
 from sympy import Poly
 from sympy.abc import x
 import os
+import numpy as np
 
 verbose = False
 
@@ -185,14 +186,19 @@ def get_noise(mod = q, deg = n, max_coeff = 5):
 	"""
 	# return Poly(0, x, modulus = mod)
 	assert max_coeff.is_integer()
+
+	""" attempt 2 - get values in {-1, 0, 1}.
+	"""
+	coeffs = np.random.randint(9, high = 21, size = deg, dtype = int) // 10 - 1
+	return coeffs_to_polynomial(list(coeffs), mod = mod)
+	coeffs = coeffs // 10
 	return make_random_poly(mod = mod, deg = deg, max_coeff = 5)
 
 def get_key(mod = q, deg = n):
 	""" \\Chi_{key}.
-	Returns random polynomials for now.
+	The encryption key is supposed to be small.
 	"""
-	return make_random_poly(mod, deg, max_coeff = 1)
-	return make_random_poly(mod, deg, max_coeff = max((mod // 1000), 3))
+	return make_random_poly(mod, deg, max_coeff = 3)
 
 def get_domain_inverse(num, mod = q):
 	""" inverse of @num in GF(q)
@@ -460,7 +466,8 @@ def trial(mod, deg):
 	pt = make_random_poly(mod, deg)
 	print(f"Made random polynomial plaintext {pt}")
 	k = setup_encryption(mod, deg)
-	print(f"keys: {k}")
+	if verbose:
+		print(f"*** ***\nkeys: {k}\n*** ***\n")
 	ct = encrypt_plaintext(pt, k, mod, deg)
 	print(f"generated ciphertext (c0, c1):\n{ct[0]}\n{ct[1]}")
 	decrypted = decrypt_ciphertext(ct, k, mod, deg)
@@ -514,7 +521,7 @@ def trial_mul_ciphertext(mod, deg):
 	pt1 = make_random_poly(mod = mod, deg = deg, max_coeff = 10000)
 	pt2 = make_random_poly(mod = mod, deg = deg, max_coeff = 10000)
 	k = setup_encryption(mod, deg)
-	print(f"\n\nMULTIPLICATION\n{pt1}\n{pt2}\n{k}")
+	print(f"\n\nMULTIPLICATION\n{pt1}\n{pt2}\n")
 	ct1 = encrypt_plaintext(pt1, k, mod, deg)
 	ct2 = encrypt_plaintext(pt2, k, mod, deg)
 

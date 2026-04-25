@@ -9,7 +9,7 @@ This paper uses only the special case where $s' = s^2$.
 The "use" of the evaluation key, $evk = KSGen_{sk} (s ^2)$, as per chatGPT is to
 have a linear representation of $s^2$:
 
-$ s^2 = A + B \cdot s $
+$s^2 = A + B \cdot s$
 
 for easy substitution when three-term multiplication ciphertext is being reduced
 to two terms:
@@ -46,3 +46,18 @@ $q$) is NOT clear.
 
 I have picked coefficients in $[0, 5)$. Some others pick ${-1, 0, 1}$.   
 Better to have a mean value of zero, or errors will be monotonically increasing.  
+
+### Error Propagation in Multiplication
+
+Ciphertexts: $m_1 \rightarrow (-v_1 \cdot a \cdot s + m_1 + e_{11}, v_1 \cdot a + e_{12})$
+or $(A_0, A_1)$,    
+and $m_2 \rightarrow (-v_2 \cdot a \cdot s + m_2 + e_{21}, v_2 \cdot a + e_{22})$,
+or $(B_0, B_1)$.  
+
+Evaluation key: $(-a' \cdot s + P \cdot s^2 + e_{evk}, a')$ is muliplied with
+$c_2 = A_1 \cdot B_1$.
+
+The error term is $(e_{evk} \cdot A_1 \cdot B_1 + evk[0] \cdot (e_{12} \cdot v_1 + e_{22} \cdot v_2), a' \cdot (e_{12} \cdot v_2 + e_{22} \cdot v_1) )$
+
+Terms of the form $e \cdot a$ cannot be ignored, as $a$ is a random polynomial.  
+It is not clear how this error is managed.
