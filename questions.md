@@ -60,7 +60,7 @@ Evaluation key: $(-a' \cdot s + P \cdot s^2 + e_{evk}, a')$ is muliplied with
 $c_2 = A_1 \cdot B_1$.
 
 The error term is $(e_{evk} \cdot A_1 \cdot B_1 + evk[0] \cdot (e_{12} \cdot v_1 + e_{22} \cdot v_2), a' \cdot a \cdot (e_{12} \cdot v_2 + e_{22} \cdot v_1) )$.  
-With simplification, it is $(e_{evk} \cdot v_1 v_2 a^2 + evk[0] \cdot  e_* v_*, a' \cdot a \cdot e_* v_*) $
+With simplification, it is $(e_{evk} \cdot v_1 v_2 a^2 + evk[0] \cdot  e_* v_*, a' \cdot a \cdot e_* v_*)$.
 
 #### Random Error Terms
 
@@ -68,15 +68,24 @@ Terms of the form $e \cdot a$ cannot be ignored, as $a$ is a random polynomial.
 But $e_* v_*$ and $e_i e_j$ are negligible.
 It is not clear how this error is managed.
 
-Error in $c_0 = A_0 \cdot B_0$: $-a \cdot s \cdot (v_A e_{B1} + v_B e_{A1} ) - 2 a v_1 v_2 s e_{pk}$.
+Error in $c_0 = A_0 \cdot B_0$ is $-a \cdot s \cdot (v_A e_{B1} + v_B e_{A1} ) - 2 a v_1 v_2 s e_{pk}$.
 (Excluding negligible terms.)
 
-Error in $c_1 = A_0 B_1 + A_1 B_0$: $-as(v_B e_{A2} + v_A e_{B2}) + 2 a v_A v_B e_{pk} + a (e_{A1} v_B + e_{B1} v_A)$.
+Error in $c_1 = A_0 B_1 + A_1 B_0$ is $-as(v_B e_{A2} + v_A e_{B2}) + 2 a v_A v_B e_{pk} + a (e_{A1} v_B + e_{B1} v_A)$.
 
 Error in $c_2 = A_1 B_1$ is $a (v_A e_{B2} + v_B e_{A2})$, with no other negligible terms.
 
 Thus, all three terms have some serious random-valued error as well as some small error terms.  
 However, decryption using $m_A \cdot m_B =  c_0 + c_1 s + c_2 s^2$ succeeds as they cancel each other.  
+
+On using the evaluation key, the ciphertext contains a completely random error
+term which _cannot_ be hidden: the coefficient of $e_{evk}$ is $A_1 B_1$ in the
+above equation, which has a $a \cdot v_A$ term with a random value in the
+distribution $R_q$.  
+
+Moreover, $e_{A1}, e_{A2}$, etc occur in multiple ciphertexts and eventually
+cancel out, but $e_{evk}$ appears only in the multiplication above, and does not
+cancel out.   
 
 In the current code version, multiplication succeeds when
 - Decrypting using above formula instead of going through the
