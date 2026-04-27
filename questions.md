@@ -14,7 +14,7 @@ $s^2 = A + B \cdot s$
 for easy substitution when three-term multiplication ciphertext is being reduced
 to two terms:
 
-Replace $c_0 + c_1 \dot s + c_2 \dot s^2$ with $d_0 + d_1 \dot s$, whose
+Replace $c_0 + c_1 \cdot s + c_2 \cdot s^2$ with $d_0 + d_1 \cdot s$, whose
 ciphertext representation is like normal ciphertext: $(d_0, d_1)$.
 
 See comments in `ciphertext_multiply()`.
@@ -44,20 +44,47 @@ $q$) is NOT clear.
 
 ### Noise Distribution
 
-I have picked coefficients in $[0, 5)$. Some others pick ${-1, 0, 1}$.   
+I have picked coefficients in $[0, 5)$. Some others pick $\{-1, 0, 1\}$.   
 Better to have a mean value of zero, or errors will be monotonically increasing.  
 
 ### Error Propagation in Multiplication
 
-Ciphertexts: $m_1 \rightarrow (-v_1 \cdot a \cdot s + m_1 + e_{11}, v_1 \cdot a + e_{12})$
+Integer overflow does not cause problems.  
+
+Ciphertexts: $m_A \rightarrow (-v_A \cdot a \cdot s + m_A + e_{A1}, v_A \cdot a + e_{A2})$
 or $(A_0, A_1)$,    
-and $m_2 \rightarrow (-v_2 \cdot a \cdot s + m_2 + e_{21}, v_2 \cdot a + e_{22})$,
+and $m_B \rightarrow (-v_B \cdot a \cdot s + m_B + e_{B1}, v_B \cdot a + e_{B2})$,
 or $(B_0, B_1)$.  
 
 Evaluation key: $(-a' \cdot s + P \cdot s^2 + e_{evk}, a')$ is muliplied with
 $c_2 = A_1 \cdot B_1$.
 
-The error term is $(e_{evk} \cdot A_1 \cdot B_1 + evk[0] \cdot (e_{12} \cdot v_1 + e_{22} \cdot v_2), a' \cdot (e_{12} \cdot v_2 + e_{22} \cdot v_1) )$
+The error term is $(e_{evk} \cdot A_1 \cdot B_1 + evk[0] \cdot (e_{12} \cdot v_1 + e_{22} \cdot v_2), a' \cdot a \cdot (e_{12} \cdot v_2 + e_{22} \cdot v_1) )$.  
+With simplification, it is $(e_{evk} \cdot v_1 v_2 a^2 + evk[0] \cdot  e_* v_*, a' \cdot a \cdot e_* v_*) $
+
+#### Random Error Terms
 
 Terms of the form $e \cdot a$ cannot be ignored, as $a$ is a random polynomial.  
+But $e_* v_*$ and $e_i e_j$ are negligible.
 It is not clear how this error is managed.
+
+Error in $c_0 = A_0 \cdot B_0$: $-a \cdot s \cdot (v_A e_{B1} + v_B e_{A1} ) - 2 a v_1 v_2 s e_{pk}$.
+(Excluding negligible terms.)
+
+Error in $c_1 = A_0 B_1 + A_1 B_0$: $-as(v_B e_{A2} + v_A e_{B2}) + 2 a v_A v_B e_{pk} + a (e_{A1} v_B + e_{B1} v_A)$.
+
+Error in $c_2 = A_1 B_1$ is $a (v_A e_{B2} + v_B e_{A2})$, with no other negligible terms.
+
+Thus, all three terms have some serious random-valued error as well as some small error terms.  
+However, decryption using $m_A \cdot m_B =  c_0 + c_1 s + c_2 s^2$ succeeds as they cancel each other.  
+
+In the current code version, multiplication succeeds when
+- Decrypting using above formula instead of going through the
+  $ct_{mult} = (c_0, c_1) + P^{-1} \cdot c_2 \cdot evk$ formula
+- Setting $e_{evk} = 0$ in the code.
+
+To check: uncomment `e_new = 0` in `generate_evaluation_key()`.  
+To debug: `export DEGREE=1` to get only monomial polynomials.  
+
+Further, multiplying three terms is not possible this way, as it needs to
+compute an intermediate ciphertext value.  

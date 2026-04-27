@@ -59,7 +59,7 @@ def to_ciphertext(poln, mod = q):
 	if verbose:
 		print(f"# to_ciphertext: {mod}")
 
-	as_sympy_poln = Poly(poln, modulus = mod)
+	as_sympy_poln = Poly(poln, x, modulus = mod)
 	as_sympy_poln.degree() < n
 	return as_sympy_poln
 
@@ -137,7 +137,7 @@ def coeffs_to_polynomial(cf_list, mod = q):
 
 	for cf in cf_list:
 		degree -= 1
-		retval += Poly(x ** degree, x, modulus = mod)
+		retval += Poly(x ** degree * cf, x, modulus = mod)
 
 	if verbose:
 		print(f"coeffs_to_polynomial: mod {mod}\n{cf_list}\n{retval}")
@@ -147,7 +147,7 @@ def coeffs_to_polynomial(cf_list, mod = q):
 def polynomial_new_domain(poln, new_mod):
 	l = coeffs_list(poln)
 	ret = coeffs_to_polynomial(l, mod = new_mod)
-	
+
 	return ret
 
 def poly_mult(p1, p2, mod = q, divisor_degree = n):
@@ -158,13 +158,16 @@ def poly_mult(p1, p2, mod = q, divisor_degree = n):
 	assert isinstance(p1, Poly)
 	assert isinstance(p2, Poly)
 	assert p1.degree() == p2.degree()
+	assert p1.domain.mod == p2.domain.mod
+	mod = p1.domain.mod
+
 	if verbose:
 		print(f"# poly_mult: degree={divisor_degree}")
 		print(f"# poly_mult: moduli are {mod}, {p1.domain.mod}, {p2.domain.mod}")
 
-	mod = Poly(x ** divisor_degree + 1, x, modulus = mod)
+	mod_poly = Poly(x ** divisor_degree + 1, x, modulus = mod)
 
-	return (p1 * p2).rem(mod)
+	return (p1 * p2).rem(mod_poly)
 
 # Encryption helpers start here.
 
@@ -187,11 +190,17 @@ def get_noise(mod = q, deg = n, max_coeff = 5):
 	# return Poly(0, x, modulus = mod)
 	assert max_coeff.is_integer()
 
+	# For token runs
+	if (deg < 2):
+		return make_random_poly(mod = mod, deg = deg, max_coeff = 10)
+
 	""" attempt 2 - get values in {-1, 0, 1}.
 	"""
 	coeffs = np.random.randint(9, high = 21, size = deg, dtype = int) // 10 - 1
 	return coeffs_to_polynomial(list(coeffs), mod = mod)
 	coeffs = coeffs // 10
+
+	# Original
 	return make_random_poly(mod = mod, deg = deg, max_coeff = 5)
 
 def get_key(mod = q, deg = n):
@@ -231,6 +240,7 @@ def generate_evaluation_key(rns_context, mod = q, deg = n):
 
 	a_new = make_random_poly(mod = pq, deg = deg)
 	e_new = get_noise(mod = pq, deg = deg)
+	# e_new = 0
 
 	sk_coeffs = coeffs_list(sk)
 	sk_new_domain = coeffs_to_polynomial(sk_coeffs, mod = pq)
@@ -246,6 +256,17 @@ def generate_evaluation_key(rns_context, mod = q, deg = n):
 			e_new,
 		a_new,
 		)
+
+	if verbose and deg < 5:
+		print(f"evk is\n{evk[0]}\n----\n{evk[1]}\n--- evk ends ---\n")
+		print(f"a' is {a_new}")
+
+		print(f"verifying: sk={sk_coeffs}, sk_new_domain={sk_new_domain}")
+		print(f"sk2 = {sk_squared}\na_new = {a_new}")
+		zero = evk[0] + poly_mult(a_new, sk_new_domain, divisor_degree = deg)
+		zero -= rns_context['P'] * sk_squared
+
+		print(f" is this zero? {zero}")
 
 	return evk
 
@@ -280,6 +301,11 @@ def setup_encryption(mod = q, deg = n):
 	rns_context['P_inv'] = get_domain_inverse(P, mod)
 
 	rns_context['evk'] = generate_evaluation_key(rns_context, mod = q, deg = n)
+
+	if verbose and deg < 5:
+		print(f"keys are\nsk: {sk}\npk: {pk}\nP: {P}\nP_inv "
+		      f"{rns_context['P_inv']}\nevk: {rns_context['evk']}"
+		      )
 
 	return rns_context
 
@@ -424,13 +450,44 @@ def ciphertext_multiply(ct1, ct2, keys, mod = n, deg = q,
 	assert isinstance(evk[1], Poly)
 	assert len(evk) == 2
 
-	evk0 = polynomial_new_domain(evk[0], mod)
-	evk1 = polynomial_new_domain(evk[1], mod)
+	# Do multiplication mod P.q
+	pq = evk[0].domain.mod
+	c2_pq = polynomial_new_domain(c2, pq)
+
+	relin_term = (
+		polynomial_new_domain(P_inv * poly_mult(c2_pq, evk[0], mod = pq), mod),
+		polynomial_new_domain(P_inv * poly_mult(c2_pq, evk[1], mod = pq), mod),
+		)
 
 	ct_mult = (
-		c0 + (P_inv * poly_mult(c2, evk0)),
-		c1 + (P_inv * poly_mult(c2, evk1))
+		c0 + relin_term[0],
+		c1 + relin_term[1],
 		)
+
+	if verbose and deg < 5:
+		print("ciphertext_multiply")
+		print(f"ct1 = {ct1}\nct2 = {ct2}")
+		print(f"c0 is {c0}")
+		print(f"c1 is {c1}")
+		print(f"c2 is {c2}")
+
+		print(f"ct_mult is\n\t{ct_mult[0]}\n\t{ct_mult[1]}\n"
+		      f"rns_context: {keys}"
+		      )
+
+		# debugging
+		print(f"comparing pairs of terms now")
+		sk = keys['sk'][1]
+		c2s2 = poly_mult(sk,
+			   poly_mult(c2, sk, mod = mod, divisor_degree = deg),
+			   mod = mod,
+			   divisor_degree = deg)
+		dec_out = decrypt_ciphertext(relin_term, keys, mod = mod, deg = deg)
+
+		print(f"P_inv . c2 . evk: {relin_term}")
+		print(f"c2 * s^2 is {c2s2}")
+		print(f"decrypted relinearization term is {dec_out}")
+		get_ratios(dec_out, c2s2)
 
 	return ct_mult
 
@@ -450,7 +507,9 @@ def get_ratios(pt1, pt2):
 	difference = pt1 - pt2
 	diff_ratio = [ abs(int(t)) / mod for t in coeffs_list(difference) ]
 	avg = sum(diff_ratio) / len(diff_ratio)
-	print(f"average difference ratio: {avg} | {diff_ratio[:15]} ...")
+	print(f"***** OUTPUT ERROR ******")
+	print(f"average difference in plaintext values: {avg} | max 0.5")
+	print(f"*****              ******\n")
 
 	if verbose:
 		print(f"differences are {diff_ratio}\n***************");
@@ -518,8 +577,10 @@ def trial_mul_ciphertext(mod, deg):
 	Error: same error term as trial(), for two terms.
 	Use moderately small m1, m2 values to avoid integer overflow.
 	"""
-	pt1 = make_random_poly(mod = mod, deg = deg, max_coeff = 10000)
-	pt2 = make_random_poly(mod = mod, deg = deg, max_coeff = 10000)
+	mul_max_coeff = 0
+
+	pt1 = make_random_poly(mod = mod, deg = deg, max_coeff = mul_max_coeff)
+	pt2 = make_random_poly(mod = mod, deg = deg, max_coeff = mul_max_coeff)
 	k = setup_encryption(mod, deg)
 	print(f"\n\nMULTIPLICATION\n{pt1}\n{pt2}\n")
 	ct1 = encrypt_plaintext(pt1, k, mod, deg)
@@ -541,6 +602,20 @@ def trial_mul_ciphertext(mod, deg):
 	print(f"\nEarly output: {early_output}")
 	print(f"\n------\nEarly decryption output:")
 	get_ratios(early_output, true_val)
+
+	print(f"MULTIPLYING THIRD VALUE")
+	pt3 = make_random_poly(mod = mod, deg = deg, max_coeff = mul_max_coeff)
+	ct3 = encrypt_plaintext(pt3, k, mod, deg)
+
+	true_val = poly_mult(true_val, pt3, mod = mod, divisor_degree = deg)
+	ct_out = ciphertext_multiply(ct, ct3, k, mod = mod, deg = deg)
+	pt_out = decrypt_ciphertext(ct, k, mod, deg)
+
+	if verbose:
+		print(f"multiplying three: true value\n{true_val}")
+		print(f"output val: {pt_out}\n\n")
+
+	get_ratios(pt_out, true_val)
 
 
 def main():
